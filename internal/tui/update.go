@@ -3,37 +3,47 @@ package tui
 import (
 	"context"
 	"fmt"
-	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/glamour"
 	"github.com/google/generative-ai-go/genai"
 	"log"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/postsa/strut-cli/internal/gemini"
 )
 
-// Update handles TUI events.
+type tickMsg time.Time
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		tiCmd tea.Cmd
-		vpCmd tea.Cmd
+		tiCmd   tea.Cmd
+		vpCmd   tea.Cmd
+		listCmd tea.Cmd
+		//prgsCmd tea.Cmd
 	)
 
-	m.textarea, tiCmd = m.textarea.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
-
 	switch msg := msg.(type) {
+	case tea.QuitMsg:
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyTab:
+			m.textinput.Focus()
 		case tea.KeyCtrlC:
 			m.quitting = true
 			return m, tea.Quit
 		case tea.KeyEsc:
 			m.viewing = false
-			return m, tea.WindowSize()
+			return m, nil
 		case tea.KeyEnter:
-			prompt := m.textarea.Value()
-			m.textarea.Reset()
-
+			prompt := m.textinput.Value()
+			m.loading = true
+			m.textinput.Reset()
+			newList := append(m.previousQuestionsList, item{title: prompt, desc: "some description"})
+			m.previousQuestionsList = newList
+			m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
 			return m, func() tea.Msg {
 				geminiClient, err := gemini.NewClient(context.Background())
 				if err != nil {
@@ -50,24 +60,73 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return geminiResponseMsg{resp}
 			}
 		}
+	case tea.WindowSizeMsg:
+		m.progress.Width = msg.Width - 6
+		m.previousQuestionsListModel.SetWidth(msg.Width / 3)
+		m.previousQuestionsListModel.SetHeight(msg.Height - 4)
+		m.resultsViewport.Height = msg.Height - 4
+		m.resultsViewport.Style.MaxWidth(msg.Width - m.previousQuestionsListModel.Width())
+		m.resultsViewport.Width = msg.Width - m.previousQuestionsListModel.Width()
+		newRenderer, _ := glamour.NewTermRenderer(
+			glamour.WithAutoStyle(),
+			glamour.WithWordWrap(msg.Width-m.previousQuestionsListModel.Width()-2),
+		)
+		m.mdRenderer = *newRenderer
+		output, _ := m.mdRenderer.Render(m.response)
+		m.resultsViewport.SetContent(output)
+		m.textinput.Focus()
 
 	case geminiResponseMsg:
 		m.viewing = true
+		m.progress.SetPercent(1.0)
 		m.geminiResponse = msg.response
 		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
-		output, _ := m.renderer.Render(m.response)
-		m.viewport.SetContent(output)
+		output, _ := m.mdRenderer.Render(m.response)
+		m.resultsViewport.SetContent(output)
+		m.loading = false
+		m.progress.SetPercent(0.0)
 
 	case errMsg:
 		m.err = msg.err
-		m.viewport.SetContent(fmt.Sprintf("Error: %s", msg.err))
+		m.resultsViewport.SetContent(fmt.Sprintf("Error: %s", msg.err))
+
+	case tickMsg:
+		if m.loading {
+			cmd := m.progress.IncrPercent(0.01)
+			return m, tea.Batch(tickCmd(), cmd)
+		}
+	case progress.FrameMsg:
+		if m.loading {
+			progressModel, cmd := m.progress.Update(msg)
+			m.progress = progressModel.(progress.Model)
+			return m, cmd
+		}
 	}
 
-	return m, tea.Batch(tiCmd, vpCmd)
+	m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
+	m.textinput, tiCmd = m.textinput.Update(msg)
+	m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
+
+	cmds := []tea.Cmd{tiCmd, vpCmd, listCmd}
+
+	//if m.loading {
+	//	var progressModel tea.Model
+	//	progressModel, prgsCmd = m.progress.Update(msg)
+	//	m.progress = progressModel.(progress.Model)
+	//	cmds = append(cmds, tickCmd(), prgsCmd)
+	//}
+
+	return m, tea.Batch(cmds...)
 }
 
 type geminiResponseMsg struct {
 	response *genai.GenerateContentResponse
+}
+
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second/100, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 type errMsg struct{ err error }
@@ -75,5 +134,5 @@ type errMsg struct{ err error }
 func (e errMsg) Error() string { return e.err.Error() }
 
 func (m Model) Init() tea.Cmd {
-	return textarea.Blink
+	return textinput.Blink
 }

@@ -1,51 +1,81 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/generative-ai-go/genai"
+	"io"
 )
+
+type item struct {
+	title, desc string
+}
+
+func (i item) Title() string       { return i.title }
+func (i item) Description() string { return i.desc }
+func (i item) FilterValue() string { return i.title }
 
 // Model represents the TUI's state.
 type Model struct {
-	textarea       textarea.Model
-	viewport       viewport.Model
-	renderer       glamour.TermRenderer
-	response       string
-	geminiResponse *genai.GenerateContentResponse
-	err            error
-	quitting       bool
-	viewing        bool
+	textinput                  textinput.Model
+	resultsViewport            viewport.Model
+	previousQuestionsListModel list.Model
+	mdRenderer                 glamour.TermRenderer
+	response                   string
+	geminiResponse             *genai.GenerateContentResponse
+	err                        error
+	quitting                   bool
+	viewing                    bool
+	previousQuestionsList      []list.Item
+	dump                       io.Writer
+	loading                    bool
+	progress                   progress.Model
+}
+
+func (m Model) Resize(height int, width int) {
+
+	spew.Fdump(m.dump, "what the hell inside the function")
 }
 
 // NewModel creates a new TUI model.
-func NewModel() Model {
+func NewModel(dump io.Writer) Model {
 
-	ta := textarea.New()
-	ta.Placeholder = "Enter your prompt here..."
-	ta.Focus()
+	ti := textinput.New()
+	ti.Placeholder = "Enter your prompt here..."
 
-	width := 78
-	vp := viewport.New(width, 30)
+	width := 50
+	rvp := viewport.New(width, 30)
 
-	vp.Style = lipgloss.NewStyle().
+	pql := []list.Item{item{title: "sample question", desc: "description"}, item{title: "another question", desc: "another description"}}
+	pqlm := list.New(pql, list.NewDefaultDelegate(), 20, 20)
+
+	pqlm.Title = "Previous Questions"
+
+	pqlm.DisableQuitKeybindings()
+
+	viewportStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("228")).
-		BorderBackground(lipgloss.Color("63")).
 		BorderTop(true).
 		BorderLeft(true).
 		BorderBottom(true).
 		BorderRight(true).
 		PaddingTop(2).
-		PaddingLeft(4).
-		PaddingRight(4).
-		PaddingBottom(4).
-		Width(78)
+		PaddingLeft(2).
+		PaddingRight(2).
+		PaddingBottom(4)
+
+	rvp.Style = viewportStyle
+
+	pb := progress.New(progress.WithDefaultGradient())
 
 	const glamourGutter = 2
-	glamourRenderWidth := width - vp.Style.GetHorizontalFrameSize() - glamourGutter
+	glamourRenderWidth := width - rvp.Style.GetHorizontalFrameSize() - glamourGutter
 
 	r, _ := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
@@ -53,8 +83,14 @@ func NewModel() Model {
 	)
 
 	return Model{
-		textarea: ta,
-		viewport: vp,
-		renderer: *r,
+		textinput:                  ti,
+		resultsViewport:            rvp,
+		mdRenderer:                 *r,
+		previousQuestionsList:      pql,
+		previousQuestionsListModel: pqlm,
+		dump:                       dump,
+		viewing:                    false,
+		loading:                    false,
+		progress:                   pb,
 	}
 }
