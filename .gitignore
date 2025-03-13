@@ -1,0 +1,9 @@
+*.exe
+*.dll
+/vendor/
+.idea/
+.vscode/
+*.swp
+._*
+.DS_Store
+strut-cli
