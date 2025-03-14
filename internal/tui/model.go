@@ -57,7 +57,7 @@ func NewModel(dump io.Writer) Model {
 	pql := []list.Item{item{title: "sample question", desc: "description"}, item{title: "another question", desc: "another description"}}
 	pqlm := list.New(pql, list.NewDefaultDelegate(), 20, 20)
 
-	pqlm.Title = "Previous Questions"
+	pqlm.Title = "History"
 
 	pqlm.DisableQuitKeybindings()
 

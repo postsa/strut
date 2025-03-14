@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/google/generative-ai-go/genai"
 	"log"
 	"time"
@@ -20,7 +21,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		tiCmd   tea.Cmd
 		vpCmd   tea.Cmd
 		listCmd tea.Cmd
-		//prgsCmd tea.Cmd
 	)
 
 	switch msg := msg.(type) {
@@ -101,12 +101,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.listFocus {
+		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
+		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
 		m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
+		m.textinput.Blur()
+	}
+	if m.viewing {
+		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
+		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
+		m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
+		m.textinput.Focus()
 	}
 	m.textinput, tiCmd = m.textinput.Update(msg)
-	if m.viewing {
-		m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
-	}
 	cmds := []tea.Cmd{tiCmd, vpCmd, listCmd}
 
 	if m.loading {
