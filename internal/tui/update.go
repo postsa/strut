@@ -78,29 +78,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case geminiResponseMsg:
 		m.viewing = true
-		m.progress.SetPercent(1.0)
 		m.geminiResponse = msg.response
 		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
 		output, _ := m.mdRenderer.Render(m.response)
 		m.resultsViewport.SetContent(output)
 		m.loading = false
-		m.progress.SetPercent(0.0)
 
 	case errMsg:
 		m.err = msg.err
 		m.resultsViewport.SetContent(fmt.Sprintf("Error: %s", msg.err))
 
 	case tickMsg:
-		if m.loading {
-			cmd := m.progress.IncrPercent(0.01)
-			return m, tea.Batch(tickCmd(), cmd)
+		var cmd tea.Cmd
+		if !m.loading {
+			cmd = m.progress.SetPercent(0)
 		}
+
+		cmd = m.progress.IncrPercent((1 - m.progress.Percent()) / 5 * (1 - m.progress.Percent()) / 5)
+		return m, tea.Batch(tickCmd(), cmd)
+
 	case progress.FrameMsg:
-		if m.loading {
-			progressModel, cmd := m.progress.Update(msg)
-			m.progress = progressModel.(progress.Model)
-			return m, cmd
-		}
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		return m, cmd
 	}
 
 	m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
@@ -109,12 +109,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	cmds := []tea.Cmd{tiCmd, vpCmd, listCmd}
 
-	//if m.loading {
-	//	var progressModel tea.Model
-	//	progressModel, prgsCmd = m.progress.Update(msg)
-	//	m.progress = progressModel.(progress.Model)
-	//	cmds = append(cmds, tickCmd(), prgsCmd)
-	//}
+	if m.loading {
+		cmds = append(cmds, tickCmd())
+	}
 
 	return m, tea.Batch(cmds...)
 }
@@ -124,7 +121,7 @@ type geminiResponseMsg struct {
 }
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second/100, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
