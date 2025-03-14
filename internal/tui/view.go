@@ -8,14 +8,9 @@ func (m Model) View() string {
 		return "Exiting...\n"
 	}
 	var bottom string
-	if m.viewing {
-		bottom = lipgloss.JoinHorizontal(lipgloss.Left, m.resultsViewport.View(), m.previousQuestionsListModel.View())
-	} else {
-		bottom = m.previousQuestionsListModel.View()
-	}
+	bottom = lipgloss.JoinHorizontal(lipgloss.Left, m.resultsViewport.View(), m.previousQuestionsListModel.View())
 	if m.loading {
 		return lipgloss.JoinVertical(lipgloss.Top, m.textinput.View(), bottom, m.progress.View())
 	}
-
 	return lipgloss.JoinVertical(lipgloss.Top, m.textinput.View(), bottom)
 }

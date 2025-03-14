@@ -35,6 +35,7 @@ type Model struct {
 	dump                       io.Writer
 	loading                    bool
 	progress                   progress.Model
+	listFocus                  bool
 }
 
 func (m Model) Resize(height int, width int) {
@@ -47,6 +48,8 @@ func NewModel(dump io.Writer) Model {
 
 	ti := textinput.New()
 	ti.Placeholder = "Enter your prompt here..."
+
+	ti.Focus()
 
 	width := 50
 	rvp := viewport.New(width, 30)
@@ -74,12 +77,9 @@ func NewModel(dump io.Writer) Model {
 
 	pb := progress.New(progress.WithDefaultGradient())
 
-	const glamourGutter = 2
-	glamourRenderWidth := width - rvp.Style.GetHorizontalFrameSize() - glamourGutter
-
 	r, _ := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(glamourRenderWidth),
+		glamour.WithWordWrap(500),
 	)
 
 	return Model{
@@ -92,5 +92,6 @@ func NewModel(dump io.Writer) Model {
 		viewing:                    false,
 		loading:                    false,
 		progress:                   pb,
+		listFocus:                  true,
 	}
 }

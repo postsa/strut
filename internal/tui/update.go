@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/glamour"
 	"github.com/google/generative-ai-go/genai"
 	"log"
 	"time"
@@ -30,12 +29,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyTab:
-			m.textinput.Focus()
+			if m.viewing {
+				m.listFocus = true
+				m.viewing = false
+			} else {
+				m.viewing = true
+				m.listFocus = false
+			}
 		case tea.KeyCtrlC:
 			m.quitting = true
 			return m, tea.Quit
 		case tea.KeyEsc:
-			m.viewing = false
 			return m, nil
 		case tea.KeyEnter:
 			prompt := m.textinput.Value()
@@ -61,23 +65,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.WindowSizeMsg:
+		m.textinput.Blur()
 		m.progress.Width = msg.Width - 6
 		m.previousQuestionsListModel.SetWidth(msg.Width / 3)
 		m.previousQuestionsListModel.SetHeight(msg.Height - 4)
 		m.resultsViewport.Height = msg.Height - 4
 		m.resultsViewport.Style.MaxWidth(msg.Width - m.previousQuestionsListModel.Width())
 		m.resultsViewport.Width = msg.Width - m.previousQuestionsListModel.Width()
-		newRenderer, _ := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
-			glamour.WithWordWrap(msg.Width-m.previousQuestionsListModel.Width()-2),
-		)
-		m.mdRenderer = *newRenderer
-		output, _ := m.mdRenderer.Render(m.response)
-		m.resultsViewport.SetContent(output)
 		m.textinput.Focus()
 
 	case geminiResponseMsg:
-		m.viewing = true
 		m.geminiResponse = msg.response
 		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
 		output, _ := m.mdRenderer.Render(m.response)
@@ -94,7 +91,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = m.progress.SetPercent(0)
 		}
 
-		cmd = m.progress.IncrPercent((1 - m.progress.Percent()) / 5 * (1 - m.progress.Percent()) / 5)
+		cmd = m.progress.IncrPercent((1 - m.progress.Percent()) / 2 * (1 - m.progress.Percent()) / 2)
 		return m, tea.Batch(tickCmd(), cmd)
 
 	case progress.FrameMsg:
@@ -103,10 +100,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
+	if m.listFocus {
+		m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
+	}
 	m.textinput, tiCmd = m.textinput.Update(msg)
-	m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
-
+	if m.viewing {
+		m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
+	}
 	cmds := []tea.Cmd{tiCmd, vpCmd, listCmd}
 
 	if m.loading {
