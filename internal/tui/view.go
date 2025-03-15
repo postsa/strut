@@ -10,7 +10,7 @@ func (m Model) View() string {
 	var bottom string
 	bottom = lipgloss.JoinHorizontal(lipgloss.Left, m.resultsViewport.View(), m.previousQuestionsListModel.View())
 	if m.loading {
-		return lipgloss.JoinVertical(lipgloss.Top, m.textinput.View(), bottom, m.progress.View())
+		return lipgloss.JoinVertical(lipgloss.Top, m.textinput.View(), bottom, "\n"+m.progress.View())
 	}
 	return lipgloss.JoinVertical(lipgloss.Top, m.textinput.View(), bottom)
 }

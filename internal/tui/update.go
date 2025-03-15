@@ -42,26 +42,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEsc:
 			return m, nil
 		case tea.KeyEnter:
-			prompt := m.textinput.Value()
-			m.loading = true
-			m.textinput.Reset()
-			newList := append(m.previousQuestionsList, item{title: prompt, desc: "some description"})
-			m.previousQuestionsList = newList
-			m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
-			return m, func() tea.Msg {
-				geminiClient, err := gemini.NewClient(context.Background())
-				if err != nil {
-					log.Printf("Error creating Gemini client: %v", err)
-					return errMsg{err}
-				}
-				defer geminiClient.Close()
+			if m.textinput.Focused() {
+				prompt := m.textinput.Value()
+				m.loading = true
+				m.textinput.Reset()
+				newList := append(m.previousQuestionsList, item{title: prompt, desc: "some description"})
+				m.previousQuestionsList = newList
+				m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
+				return m, func() tea.Msg {
+					geminiClient, err := gemini.NewClient(context.Background())
+					if err != nil {
+						log.Printf("Error creating Gemini client: %v", err)
+						return errMsg{err}
+					}
+					defer geminiClient.Close()
 
-				resp, err := geminiClient.GenerateContent(context.Background(), prompt)
-				if err != nil {
-					log.Printf("Error generating content: %v", err)
-					return errMsg{err}
+					resp, err := geminiClient.GenerateContent(context.Background(), prompt)
+					if err != nil {
+						log.Printf("Error generating content: %v", err)
+						return errMsg{err}
+					}
+					return geminiResponseMsg{resp}
 				}
-				return geminiResponseMsg{resp}
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -69,7 +71,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progress.Width = msg.Width - 6
 		m.previousQuestionsListModel.SetWidth(msg.Width / 3)
 		m.previousQuestionsListModel.SetHeight(msg.Height - 4)
-		m.resultsViewport.Height = msg.Height - 4
+		m.resultsViewport.Height = msg.Height - 5
 		m.resultsViewport.Style.MaxWidth(msg.Width - m.previousQuestionsListModel.Width())
 		m.resultsViewport.Width = msg.Width - m.previousQuestionsListModel.Width()
 		m.textinput.Focus()
@@ -78,6 +80,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.geminiResponse = msg.response
 		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
 		output, _ := m.mdRenderer.Render(m.response)
+		m.previousAnswers = append(m.previousAnswers, output)
 		m.resultsViewport.SetContent(output)
 		m.loading = false
 
@@ -98,6 +101,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		progressModel, cmd := m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
 		return m, cmd
+
+	case GetAnswerMsg:
+		if len(m.previousQuestionsList) > 0 {
+			m.resultsViewport.SetContent(m.previousAnswers[msg.position])
+		}
+
 	}
 
 	if m.listFocus {

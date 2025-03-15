@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/generative-ai-go/genai"
 	"io"
 )
@@ -36,11 +35,7 @@ type Model struct {
 	loading                    bool
 	progress                   progress.Model
 	listFocus                  bool
-}
-
-func (m Model) Resize(height int, width int) {
-
-	spew.Fdump(m.dump, "what the hell inside the function")
+	previousAnswers            []string
 }
 
 // NewModel creates a new TUI model.
@@ -54,12 +49,14 @@ func NewModel(dump io.Writer) Model {
 	width := 50
 	rvp := viewport.New(width, 30)
 
-	pql := []list.Item{item{title: "sample question", desc: "description"}, item{title: "another question", desc: "another description"}}
-	pqlm := list.New(pql, list.NewDefaultDelegate(), 20, 20)
+	var pql []list.Item
+	pqlm := list.New(pql, getAnswerDelegate(), 20, 20)
 
 	pqlm.Title = "History"
 
 	pqlm.DisableQuitKeybindings()
+
+	var pa []string
 
 	viewportStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -89,9 +86,10 @@ func NewModel(dump io.Writer) Model {
 		previousQuestionsList:      pql,
 		previousQuestionsListModel: pqlm,
 		dump:                       dump,
-		viewing:                    false,
+		viewing:                    true,
 		loading:                    false,
 		progress:                   pb,
-		listFocus:                  true,
+		listFocus:                  false,
+		previousAnswers:            pa,
 	}
 }
