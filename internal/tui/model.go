@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -35,7 +36,10 @@ type Model struct {
 	loading                    bool
 	progress                   progress.Model
 	listFocus                  bool
+	previousAnswersRendered    []string
+	currentContentRendered     string
 	previousAnswers            []string
+	currentContent             string
 }
 
 // NewModel creates a new TUI model.
@@ -76,8 +80,19 @@ func NewModel(dump io.Writer) Model {
 
 	r, _ := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(500),
+		glamour.WithWordWrap(80),
 	)
+
+	rvp.KeyMap = viewport.KeyMap{
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "up"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "down"),
+		),
+	}
 
 	return Model{
 		textinput:                  ti,
@@ -90,6 +105,6 @@ func NewModel(dump io.Writer) Model {
 		loading:                    false,
 		progress:                   pb,
 		listFocus:                  false,
-		previousAnswers:            pa,
+		previousAnswersRendered:    pa,
 	}
 }

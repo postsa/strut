@@ -3,11 +3,13 @@ package tui
 import (
 	"context"
 	"fmt"
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/generative-ai-go/genai"
 	"log"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,6 +38,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewing = true
 				m.listFocus = false
 			}
+		case tea.KeyCtrlA:
+			clipboard.WriteAll(m.currentContent)
+		case tea.KeyCtrlS:
+			clipboard.WriteAll(strings.Trim(m.currentContent, "`"))
 		case tea.KeyCtrlC:
 			m.quitting = true
 			return m, tea.Quit
@@ -46,7 +52,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				prompt := m.textinput.Value()
 				m.loading = true
 				m.textinput.Reset()
-				newList := append(m.previousQuestionsList, item{title: prompt, desc: "some description"})
+				newList := append(m.previousQuestionsList, item{title: prompt, desc: time.Now().Format("01/02/06 03:04 PM")})
 				m.previousQuestionsList = newList
 				m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
 				return m, func() tea.Msg {
@@ -62,7 +68,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						log.Printf("Error generating content: %v", err)
 						return errMsg{err}
 					}
-					return geminiResponseMsg{resp}
+					return geminiResponseMsg{response: resp}
 				}
 			}
 		}
@@ -70,8 +76,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.textinput.Blur()
 		m.progress.Width = msg.Width - 6
 		m.previousQuestionsListModel.SetWidth(msg.Width / 3)
-		m.previousQuestionsListModel.SetHeight(msg.Height - 4)
-		m.resultsViewport.Height = msg.Height - 5
+		m.previousQuestionsListModel.SetHeight(msg.Height - 9)
+		m.resultsViewport.Height = msg.Height - 9
 		m.resultsViewport.Style.MaxWidth(msg.Width - m.previousQuestionsListModel.Width())
 		m.resultsViewport.Width = msg.Width - m.previousQuestionsListModel.Width()
 		m.textinput.Focus()
@@ -79,9 +85,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case geminiResponseMsg:
 		m.geminiResponse = msg.response
 		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
+		m.previousAnswers = append(m.previousAnswers, m.response)
+		m.currentContent = m.response
 		output, _ := m.mdRenderer.Render(m.response)
-		m.previousAnswers = append(m.previousAnswers, output)
-		m.resultsViewport.SetContent(output)
+		m.previousAnswersRendered = append(m.previousAnswersRendered, output)
+		m.currentContentRendered = output
+		m.resultsViewport.SetContent(m.currentContentRendered)
+		m.previousQuestionsListModel.Select(len(m.previousQuestionsList) - 1)
 		m.loading = false
 
 	case errMsg:
@@ -104,7 +114,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case GetAnswerMsg:
 		if len(m.previousQuestionsList) > 0 {
-			m.resultsViewport.SetContent(m.previousAnswers[msg.position])
+			m.currentContent = m.previousAnswers[msg.position]
+			m.currentContentRendered = m.previousAnswersRendered[msg.position]
+			m.resultsViewport.SetContent(m.currentContentRendered)
+			m.resultsViewport.GotoTop()
+			m.viewing = true
+			m.listFocus = false
 		}
 
 	}
@@ -112,12 +127,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.listFocus {
 		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
 		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
+		m.resultsViewport.Style = m.resultsViewport.Style.BorderForeground(lipgloss.Color("238"))
 		m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
 		m.textinput.Blur()
 	}
 	if m.viewing {
 		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
 		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
+		m.resultsViewport.Style = m.resultsViewport.Style.BorderForeground(lipgloss.Color("228"))
 		m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
 		m.textinput.Focus()
 	}
