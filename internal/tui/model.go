@@ -110,5 +110,6 @@ func NewModel(dump io.Writer) Model {
 		previousAnswersRendered:    pa,
 		progress:                   p,
 		modelName:                  "gemini-2.0-flash",
+		currentContent:             "",
 	}
 }

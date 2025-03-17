@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/generative-ai-go/genai"
 	"log"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -42,6 +44,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			clipboard.WriteAll(m.currentContent)
 		case tea.KeyCtrlS:
 			clipboard.WriteAll(strings.Trim(m.currentContent, "`"))
+		case tea.KeyCtrlV:
+			return m, runExternalProcess(m.currentContent)
 		case tea.KeyCtrlC:
 			m.quitting = true
 			return m, tea.Quit
@@ -109,6 +113,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.listFocus = false
 		}
 
+	case editorFinishedMsg:
+		defer os.Remove(msg.file.Name())
+		if msg.err != nil {
+			m.err = msg.err
+			return m, tea.Quit
+		}
 	}
 
 	if m.listFocus {
@@ -168,4 +178,23 @@ func (e errMsg) Error() string { return e.err.Error() }
 
 func (m Model) Init() tea.Cmd {
 	return textinput.Blink
+}
+
+type editorFinishedMsg struct {
+	err  error
+	file *os.File
+}
+
+func runExternalProcess(content string) tea.Cmd {
+	file, err := os.CreateTemp("", "editor_*.md")
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = file.WriteString(content)
+	cmd := exec.Command("vim", file.Name())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return editorFinishedMsg{err, file}
+	})
 }
