@@ -37,6 +37,10 @@ type GeminiResponseMsg struct {
 
 type TickMsg time.Time
 
+type ExecutePromptMessage struct {
+	Prompt string
+}
+
 type ErrMsg struct{ Err error }
 
 func (e ErrMsg) Error() string { return e.Err.Error() }

@@ -9,14 +9,14 @@ import (
 	"strings"
 )
 
-func (m ViewerModel) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m ViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		windowUpdateCmd tea.Cmd
-		cmds            []tea.Cmd
+		cmd  tea.Cmd
+		cmds []tea.Cmd
 	)
 
 	switch msg := msg.(type) {
@@ -47,22 +47,22 @@ func (m ViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.pane.Height = msg.Height - 9
-		m.pane, windowUpdateCmd = m.pane.Update(msg)
-		return m, windowUpdateCmd
+		m.pane, cmd = m.pane.Update(msg)
+		return m, cmd
 
 	case messages.ViewPortResizeMessage:
 		m.pane.Style.MaxWidth(msg.Width)
 		m.pane.Width = msg.Width
-		m.pane, windowUpdateCmd = m.pane.Update(msg)
-		return m, windowUpdateCmd
+		m.pane, cmd = m.pane.Update(msg)
+		return m, cmd
 
 	case messages.ErrMsg:
 		m.pane.SetContent(fmt.Sprintf("Error: %s", msg.Err))
 	}
 
 	if m.inFocus {
-		m.pane, windowUpdateCmd = m.pane.Update(msg)
-		cmds = append(cmds, windowUpdateCmd)
+		m.pane, cmd = m.pane.Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)

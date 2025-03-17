@@ -7,19 +7,19 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (m ViewerModel) Focus() ViewerModel {
+func (m Model) Focus() Model {
 	m.inFocus = true
 	m.pane.Style = m.pane.Style.BorderForeground(lipgloss.Color("228"))
 	return m
 }
 
-func (m ViewerModel) Blur() ViewerModel {
+func (m Model) Blur() Model {
 	m.inFocus = false
 	m.pane.Style = m.pane.Style.BorderForeground(lipgloss.Color("238"))
 	return m
 }
 
-type ViewerModel struct {
+type Model struct {
 	pane                   viewport.Model
 	renderer               *glamour.TermRenderer
 	currentContentRendered string
@@ -27,7 +27,7 @@ type ViewerModel struct {
 	inFocus                bool
 }
 
-func NewViewerModel() ViewerModel {
+func NewModel() Model {
 	vp := viewport.New(50, 30)
 	viewportStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -55,7 +55,7 @@ func NewViewerModel() ViewerModel {
 			key.WithHelp("↓", "down"),
 		),
 	}
-	return ViewerModel{
+	return Model{
 		pane:     vp,
 		renderer: r,
 		inFocus:  true,

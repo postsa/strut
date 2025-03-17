@@ -1,5 +1,5 @@
 package viewer
 
-func (m ViewerModel) View() string {
+func (m Model) View() string {
 	return m.pane.View()
 }

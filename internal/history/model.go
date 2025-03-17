@@ -14,7 +14,7 @@ func (i item) Title() string       { return i.title }
 func (i item) Description() string { return i.desc }
 func (i item) FilterValue() string { return i.title }
 
-type HistoryModel struct {
+type Model struct {
 	inFocus         bool
 	prompts         []list.Item
 	listModel       list.Model
@@ -24,36 +24,36 @@ type HistoryModel struct {
 	height          int
 }
 
-func (m HistoryModel) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m HistoryModel) Width() int {
+func (m Model) Width() int {
 	return m.listModel.Width()
 }
 
-func (m HistoryModel) Height() int {
+func (m Model) Height() int {
 	return m.listModel.Height()
 }
 
-func (m HistoryModel) Focus() HistoryModel {
+func (m Model) Focus() Model {
 	m.inFocus = true
 	return m
 }
 
-func (m HistoryModel) Blur() HistoryModel {
+func (m Model) Blur() Model {
 	m.inFocus = false
 	return m
 }
 
-func NewHistoryModel() HistoryModel {
+func NewModel() Model {
 	var l []list.Item
 	lm := list.New(l, changeAnswerDelegate(), 20, 20)
 	lm.Title = "History"
 	lm.DisableQuitKeybindings()
 	lm.Styles.TitleBar = lm.Styles.TitleBar.PaddingTop(1).AlignHorizontal(lipgloss.Center)
 
-	return HistoryModel{
+	return Model{
 		inFocus:   false,
 		prompts:   l,
 		listModel: lm,

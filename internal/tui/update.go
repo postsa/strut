@@ -5,9 +5,9 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/postsa/strut-cli/internal/commands"
 	"github.com/postsa/strut-cli/internal/history"
+	"github.com/postsa/strut-cli/internal/input"
 	"github.com/postsa/strut-cli/internal/messages"
 	"github.com/postsa/strut-cli/internal/viewer"
 	"os"
@@ -19,10 +19,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		vpCmd      tea.Cmd
 		historyCmd tea.Cmd
 		viewerCmd  tea.Cmd
+		inputCmd   tea.Cmd
 	)
 	var (
 		historyModel tea.Model
 		viewerModel  tea.Model
+		inputModel   tea.Model
 	)
 
 	var cmds []tea.Cmd
@@ -45,24 +47,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEsc:
 			return m, nil
-		case tea.KeyEnter:
-			if m.textinput.Focused() {
-				prompt := m.textinput.Value()
-				currentProgressWidth := m.progress.Width
-				m.progress = progress.New(progress.WithDefaultGradient())
-				m.progress.Width = currentProgressWidth
-				m.progress.SetPercent(0)
-				cmd := m.progress.IncrPercent(.1)
-				m.loading = true
-				m.textinput.Reset()
-				return m, tea.Batch(cmd, commands.TickCmd(), commands.FetchResponseCmd(m.client, prompt))
-			}
 		}
-	case tea.WindowSizeMsg:
-		m.textinput.Blur()
-		m.progress.Width = msg.Width - 6
-		m.textinput.Focus()
 
+	case messages.ExecutePromptMessage:
+		currentProgressWidth := m.progress.Width
+		m.progress = progress.New(progress.WithDefaultGradient())
+		m.progress.Width = currentProgressWidth
+		m.progress.SetPercent(0)
+		cmd := m.progress.IncrPercent(.1)
+		m.loading = true
+		cmds = append(cmds, cmd, commands.TickCmd(), commands.FetchResponseCmd(m.client, msg.Prompt))
+
+	case tea.WindowSizeMsg:
+		m.progress.Width = msg.Width - 6
+	
 	case messages.HistoryResizedMessage:
 		return m, commands.ViewPortResizeCmd(msg.TotalWidth - msg.NewWidth)
 
@@ -99,31 +97,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.listFocus {
-		m.textinput.Blur()
 		m.historyModel = m.historyModel.Focus()
 		m.viewerModel = m.viewerModel.Blur()
-		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
-		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
-		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("238")).Foreground(lipgloss.Color("238"))
+		m.inputModel = m.inputModel.Blur()
+
 	}
 	if m.viewing {
 		m.historyModel = m.historyModel.Blur()
 		m.viewerModel = m.viewerModel.Focus()
-		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
-		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
-		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("89")).Foreground(lipgloss.Color("228"))
-		m.textinput.Focus()
+		m.inputModel = m.inputModel.Focus()
 	}
 
-	m.textinput, tiCmd = m.textinput.Update(msg)
+	inputModel, inputCmd = m.inputModel.Update(msg)
+	m.inputModel = inputModel.(input.Model)
 
 	historyModel, historyCmd = m.historyModel.Update(msg)
-	m.historyModel = historyModel.(history.HistoryModel)
+	m.historyModel = historyModel.(history.Model)
 
 	viewerModel, viewerCmd = m.viewerModel.Update(msg)
-	m.viewerModel = viewerModel.(viewer.ViewerModel)
+	m.viewerModel = viewerModel.(viewer.Model)
 
-	cmds = append(cmds, tiCmd, vpCmd, historyCmd, viewerCmd)
+	cmds = append(cmds, tiCmd, vpCmd, historyCmd, viewerCmd, inputCmd)
 	return m, tea.Batch(cmds...)
 }
 

@@ -71,3 +71,9 @@ func FetchResponseCmd(client *gemini.Client, prompt string) tea.Cmd {
 		return messages.GeminiResponseMsg{Response: resp, Prompt: prompt}
 	}
 }
+
+func ExecutePromptCmd(prompt string) tea.Cmd {
+	return func() tea.Msg {
+		return messages.ExecutePromptMessage{Prompt: prompt}
+	}
+}
