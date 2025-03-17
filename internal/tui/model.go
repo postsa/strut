@@ -40,13 +40,16 @@ type Model struct {
 	currentContentRendered     string
 	previousAnswers            []string
 	currentContent             string
+	modelName                  string
 }
 
 // NewModel creates a new TUI model.
 func NewModel(dump io.Writer) Model {
+	modelName := "gemini-2.0-flash"
 
 	ti := textinput.New()
-	ti.Placeholder = "Enter your prompt here..."
+	ti.Prompt = "(" + modelName + ")" + " > "
+	ti.Placeholder = "ask a question ..."
 
 	ti.Focus()
 
@@ -59,9 +62,11 @@ func NewModel(dump io.Writer) Model {
 	pqlm.Title = "History"
 
 	pqlm.DisableQuitKeybindings()
+	pqlm.Styles.TitleBar = pqlm.Styles.TitleBar.PaddingTop(1).AlignHorizontal(lipgloss.Center)
+
+	p := progress.New(progress.WithDefaultGradient())
 
 	var pa []string
-
 	viewportStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("228")).
@@ -75,8 +80,6 @@ func NewModel(dump io.Writer) Model {
 		PaddingBottom(4)
 
 	rvp.Style = viewportStyle
-
-	pb := progress.New(progress.WithDefaultGradient())
 
 	r, _ := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
@@ -103,8 +106,9 @@ func NewModel(dump io.Writer) Model {
 		dump:                       dump,
 		viewing:                    true,
 		loading:                    false,
-		progress:                   pb,
 		listFocus:                  false,
 		previousAnswersRendered:    pa,
+		progress:                   p,
+		modelName:                  "gemini-2.0-flash",
 	}
 }

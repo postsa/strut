@@ -50,26 +50,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			if m.textinput.Focused() {
 				prompt := m.textinput.Value()
+				currentProgressWidth := m.progress.Width
+				m.progress = progress.New(progress.WithDefaultGradient())
+				m.progress.Width = currentProgressWidth
+				m.progress.SetPercent(0)
+				cmd := m.progress.IncrPercent(.1)
 				m.loading = true
 				m.textinput.Reset()
-				newList := append(m.previousQuestionsList, item{title: prompt, desc: time.Now().Format("01/02/06 03:04 PM")})
-				m.previousQuestionsList = newList
-				m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
-				return m, func() tea.Msg {
-					geminiClient, err := gemini.NewClient(context.Background())
-					if err != nil {
-						log.Printf("Error creating Gemini client: %v", err)
-						return errMsg{err}
-					}
-					defer geminiClient.Close()
-
-					resp, err := geminiClient.GenerateContent(context.Background(), prompt)
-					if err != nil {
-						log.Printf("Error generating content: %v", err)
-						return errMsg{err}
-					}
-					return geminiResponseMsg{response: resp}
-				}
+				return m, tea.Batch(cmd, tickCmd(), fetchResponseCmd(prompt))
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -84,6 +72,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case geminiResponseMsg:
 		m.geminiResponse = msg.response
+		newList := append(m.previousQuestionsList, item{title: msg.prompt, desc: time.Now().Format("01/02/06 03:04 PM")})
+		m.previousQuestionsList = newList
+		m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
+		m.previousQuestionsListModel.Select(len(m.previousQuestionsList) - 1)
 		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
 		m.previousAnswers = append(m.previousAnswers, m.response)
 		m.currentContent = m.response
@@ -91,7 +83,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.previousAnswersRendered = append(m.previousAnswersRendered, output)
 		m.currentContentRendered = output
 		m.resultsViewport.SetContent(m.currentContentRendered)
-		m.previousQuestionsListModel.Select(len(m.previousQuestionsList) - 1)
+		m.resultsViewport.GotoTop()
 		m.loading = false
 
 	case errMsg:
@@ -99,12 +91,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resultsViewport.SetContent(fmt.Sprintf("Error: %s", msg.err))
 
 	case tickMsg:
-		var cmd tea.Cmd
-		if !m.loading {
-			cmd = m.progress.SetPercent(0)
-		}
-
-		cmd = m.progress.IncrPercent((1 - m.progress.Percent()) / 2 * (1 - m.progress.Percent()) / 2)
+		cmd := m.progress.IncrPercent(((1 - m.progress.Percent()) / 3) * ((1 - m.progress.Percent()) / 1.2))
 		return m, tea.Batch(tickCmd(), cmd)
 
 	case progress.FrameMsg:
@@ -127,6 +114,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.listFocus {
 		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
 		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
+		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("238")).Foreground(lipgloss.Color("238"))
 		m.resultsViewport.Style = m.resultsViewport.Style.BorderForeground(lipgloss.Color("238"))
 		m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
 		m.textinput.Blur()
@@ -134,6 +122,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.viewing {
 		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
 		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
+		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("89")).Foreground(lipgloss.Color("228"))
 		m.resultsViewport.Style = m.resultsViewport.Style.BorderForeground(lipgloss.Color("228"))
 		m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
 		m.textinput.Focus()
@@ -141,21 +130,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.textinput, tiCmd = m.textinput.Update(msg)
 	cmds := []tea.Cmd{tiCmd, vpCmd, listCmd}
 
-	if m.loading {
-		cmds = append(cmds, tickCmd())
-	}
-
 	return m, tea.Batch(cmds...)
 }
 
 type geminiResponseMsg struct {
 	response *genai.GenerateContentResponse
+	prompt   string
 }
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second/4, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
+}
+
+func fetchResponseCmd(prompt string) tea.Cmd {
+	return func() tea.Msg {
+		geminiClient, err := gemini.NewClient(context.Background())
+		if err != nil {
+			log.Printf("Error creating Gemini client: %v", err)
+			return errMsg{err}
+		}
+		defer geminiClient.Close()
+
+		resp, err := geminiClient.GenerateContent(context.Background(), prompt)
+		if err != nil {
+			log.Printf("Error generating content: %v", err)
+			return errMsg{err}
+		}
+		return geminiResponseMsg{response: resp, prompt: prompt}
+	}
 }
 
 type errMsg struct{ err error }
