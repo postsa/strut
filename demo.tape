@@ -10,9 +10,27 @@ Type "A really cool golang program"
 Sleep 2
 Enter
 Sleep 10
-Down 6
+Down 1
+Sleep 1
+Down 1
+Sleep 1
+Down 1
+Sleep 1
+Down 1
+Sleep 1
+Down 1
+Sleep 1
+Down 1
+Sleep 1
+Down 1
 Sleep 2
-Up 2
+Up 1
+Sleep 1
+Up 1
+Sleep 1
+Up 1
+Sleep 1
+Up 1
 Sleep 2
 Type "A few book recommendations"
 Enter
