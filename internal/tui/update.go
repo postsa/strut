@@ -1,31 +1,33 @@
 package tui
 
 import (
-	"context"
 	"fmt"
-	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/google/generative-ai-go/genai"
-	"log"
-	"os"
-	"os/exec"
-	"strings"
-	"time"
-
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/postsa/strut-cli/internal/gemini"
+	"github.com/postsa/strut-cli/internal/commands"
+	"github.com/postsa/strut-cli/internal/history"
+	"github.com/postsa/strut-cli/internal/input"
+	"github.com/postsa/strut-cli/internal/messages"
+	"github.com/postsa/strut-cli/internal/viewer"
+	"os"
 )
-
-type tickMsg time.Time
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		tiCmd   tea.Cmd
-		vpCmd   tea.Cmd
-		listCmd tea.Cmd
+		tiCmd      tea.Cmd
+		vpCmd      tea.Cmd
+		historyCmd tea.Cmd
+		viewerCmd  tea.Cmd
+		inputCmd   tea.Cmd
 	)
+	var (
+		historyModel tea.Model
+		viewerModel  tea.Model
+		inputModel   tea.Model
+	)
+
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.QuitMsg:
@@ -40,154 +42,85 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewing = true
 				m.listFocus = false
 			}
-		case tea.KeyCtrlA:
-			clipboard.WriteAll(m.currentContent)
-		case tea.KeyCtrlS:
-			clipboard.WriteAll(strings.Trim(m.currentContent, "`"))
-		case tea.KeyCtrlV:
-			return m, runExternalProcess(m.currentContent)
 		case tea.KeyCtrlC:
 			m.quitting = true
 			return m, tea.Quit
 		case tea.KeyEsc:
 			return m, nil
-		case tea.KeyEnter:
-			if m.textinput.Focused() {
-				prompt := m.textinput.Value()
-				currentProgressWidth := m.progress.Width
-				m.progress = progress.New(progress.WithDefaultGradient())
-				m.progress.Width = currentProgressWidth
-				m.progress.SetPercent(0)
-				cmd := m.progress.IncrPercent(.1)
-				m.loading = true
-				m.textinput.Reset()
-				return m, tea.Batch(cmd, tickCmd(), fetchResponseCmd(m.client, prompt))
-			}
 		}
-	case tea.WindowSizeMsg:
-		m.textinput.Blur()
-		m.progress.Width = msg.Width - 6
-		m.previousQuestionsListModel.SetWidth(msg.Width / 3)
-		m.previousQuestionsListModel.SetHeight(msg.Height - 9)
-		m.resultsViewport.Height = msg.Height - 9
-		m.resultsViewport.Style.MaxWidth(msg.Width - m.previousQuestionsListModel.Width())
-		m.resultsViewport.Width = msg.Width - m.previousQuestionsListModel.Width()
-		m.textinput.Focus()
 
-	case geminiResponseMsg:
-		m.geminiResponse = msg.response
-		newList := append(m.previousQuestionsList, item{title: msg.prompt, desc: time.Now().Format("01/02/06 03:04 PM")})
-		m.previousQuestionsList = newList
-		m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
-		m.previousQuestionsListModel.Select(len(m.previousQuestionsList) - 1)
-		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
-		m.previousAnswers = append(m.previousAnswers, m.response)
-		m.currentContent = m.response
-		output, _ := m.mdRenderer.Render(m.response)
-		m.previousAnswersRendered = append(m.previousAnswersRendered, output)
-		m.currentContentRendered = output
-		m.resultsViewport.SetContent(m.currentContentRendered)
-		m.resultsViewport.GotoTop()
+	case messages.ExecutePromptMessage:
+		currentProgressWidth := m.progress.Width
+		m.progress = progress.New(progress.WithDefaultGradient())
+		m.progress.Width = currentProgressWidth
+		m.progress.SetPercent(0)
+		cmd := m.progress.IncrPercent(.1)
+		m.loading = true
+		cmds = append(cmds, cmd, commands.TickCmd(), commands.FetchResponseCmd(m.client, msg.Prompt))
+
+	case tea.WindowSizeMsg:
+		m.progress.Width = msg.Width - 6
+	
+	case messages.HistoryResizedMessage:
+		return m, commands.ViewPortResizeCmd(msg.TotalWidth - msg.NewWidth)
+
+	case messages.GeminiResponseMsg:
+		m.geminiResponse = msg.Response
+		m.response = fmt.Sprintf("%v", msg.Response.Candidates[0].Content.Parts[0])
+		cmds = append(cmds, commands.NewAnswerCmd(m.response, msg.Prompt))
+
+	case messages.NewRenderMessage:
 		m.loading = false
 
-	case errMsg:
-		m.err = msg.err
-		m.resultsViewport.SetContent(fmt.Sprintf("Error: %s", msg.err))
+	case messages.SetAnswerMessage:
+		m.viewing = true
+		m.listFocus = false
 
-	case tickMsg:
+	case messages.ErrMsg:
+		m.err = msg.Err
+
+	case messages.TickMsg:
 		cmd := m.progress.IncrPercent(((1 - m.progress.Percent()) / 3) * ((1 - m.progress.Percent()) / 1.2))
-		return m, tea.Batch(tickCmd(), cmd)
+		return m, tea.Batch(commands.TickCmd(), cmd)
 
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
 		return m, cmd
 
-	case GetAnswerMsg:
-		if len(m.previousQuestionsList) > 0 {
-			m.currentContent = m.previousAnswers[msg.position]
-			m.currentContentRendered = m.previousAnswersRendered[msg.position]
-			m.resultsViewport.SetContent(m.currentContentRendered)
-			m.resultsViewport.GotoTop()
-			m.viewing = true
-			m.listFocus = false
-		}
-
-	case editorFinishedMsg:
-		defer os.Remove(msg.file.Name())
-		if msg.err != nil {
-			m.err = msg.err
+	case messages.EditorFinishedMsg:
+		defer os.Remove(msg.File.Name())
+		if msg.Err != nil {
+			m.err = msg.Err
 			return m, tea.Quit
 		}
 	}
 
 	if m.listFocus {
-		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
-		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
-		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("238")).Foreground(lipgloss.Color("238"))
-		m.resultsViewport.Style = m.resultsViewport.Style.BorderForeground(lipgloss.Color("238"))
-		m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
-		m.textinput.Blur()
+		m.historyModel = m.historyModel.Focus()
+		m.viewerModel = m.viewerModel.Blur()
+		m.inputModel = m.inputModel.Blur()
+
 	}
 	if m.viewing {
-		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
-		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
-		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("89")).Foreground(lipgloss.Color("228"))
-		m.resultsViewport.Style = m.resultsViewport.Style.BorderForeground(lipgloss.Color("228"))
-		m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
-		m.textinput.Focus()
+		m.historyModel = m.historyModel.Blur()
+		m.viewerModel = m.viewerModel.Focus()
+		m.inputModel = m.inputModel.Focus()
 	}
-	m.textinput, tiCmd = m.textinput.Update(msg)
-	cmds := []tea.Cmd{tiCmd, vpCmd, listCmd}
 
+	inputModel, inputCmd = m.inputModel.Update(msg)
+	m.inputModel = inputModel.(input.Model)
+
+	historyModel, historyCmd = m.historyModel.Update(msg)
+	m.historyModel = historyModel.(history.Model)
+
+	viewerModel, viewerCmd = m.viewerModel.Update(msg)
+	m.viewerModel = viewerModel.(viewer.Model)
+
+	cmds = append(cmds, tiCmd, vpCmd, historyCmd, viewerCmd, inputCmd)
 	return m, tea.Batch(cmds...)
 }
 
-type geminiResponseMsg struct {
-	response *genai.GenerateContentResponse
-	prompt   string
-}
-
-func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second/4, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-}
-
-func fetchResponseCmd(client *gemini.Client, prompt string) tea.Cmd {
-	return func() tea.Msg {
-		resp, err := client.GenerateContent(context.Background(), prompt)
-		if err != nil {
-			log.Printf("Error generating content: %v", err)
-			return errMsg{err}
-		}
-		return geminiResponseMsg{response: resp, prompt: prompt}
-	}
-}
-
-type errMsg struct{ err error }
-
-func (e errMsg) Error() string { return e.err.Error() }
-
 func (m Model) Init() tea.Cmd {
 	return textinput.Blink
-}
-
-type editorFinishedMsg struct {
-	err  error
-	file *os.File
-}
-
-func runExternalProcess(content string) tea.Cmd {
-	file, err := os.CreateTemp("", "editor_*.md")
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = file.WriteString(content)
-	cmd := exec.Command("vim", file.Name())
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		return editorFinishedMsg{err, file}
-	})
 }

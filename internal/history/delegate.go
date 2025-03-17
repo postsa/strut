@@ -1,11 +1,11 @@
-package tui
+package history
 
 import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func getAnswerDelegate() list.DefaultDelegate {
+func changeAnswerDelegate() list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		position := m.Index()
@@ -13,7 +13,7 @@ func getAnswerDelegate() list.DefaultDelegate {
 		case tea.KeyMsg:
 			switch msg.Type {
 			case tea.KeyEnter:
-				return getAnswerCmd(position)
+				return changeAnswerCommand(position)
 			}
 		}
 		return nil
@@ -21,14 +21,10 @@ func getAnswerDelegate() list.DefaultDelegate {
 	return d
 }
 
-type GetAnswerMsg struct{ position int }
+type ChangeAnswerMessage struct{ position int }
 
-func getAnswerMsg(position int) tea.Msg {
-	return GetAnswerMsg{position}
-}
-
-func getAnswerCmd(position int) tea.Cmd {
+func changeAnswerCommand(position int) tea.Cmd {
 	return func() tea.Msg {
-		return getAnswerMsg(position)
+		return ChangeAnswerMessage{position}
 	}
 }
