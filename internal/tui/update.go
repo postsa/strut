@@ -61,7 +61,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmd := m.progress.IncrPercent(.1)
 				m.loading = true
 				m.textinput.Reset()
-				return m, tea.Batch(cmd, tickCmd(), fetchResponseCmd(prompt))
+				return m, tea.Batch(cmd, tickCmd(), fetchResponseCmd(m.client, prompt))
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -154,16 +154,9 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func fetchResponseCmd(prompt string) tea.Cmd {
+func fetchResponseCmd(client *gemini.Client, prompt string) tea.Cmd {
 	return func() tea.Msg {
-		geminiClient, err := gemini.NewClient(context.Background())
-		if err != nil {
-			log.Printf("Error creating Gemini client: %v", err)
-			return errMsg{err}
-		}
-		defer geminiClient.Close()
-
-		resp, err := geminiClient.GenerateContent(context.Background(), prompt)
+		resp, err := client.GenerateContent(context.Background(), prompt)
 		if err != nil {
 			log.Printf("Error generating content: %v", err)
 			return errMsg{err}

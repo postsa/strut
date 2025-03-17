@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
@@ -9,7 +10,9 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/generative-ai-go/genai"
+	"github.com/postsa/strut-cli/internal/gemini"
 	"io"
+	"log"
 )
 
 type item struct {
@@ -41,10 +44,11 @@ type Model struct {
 	previousAnswers            []string
 	currentContent             string
 	modelName                  string
+	client                     *gemini.Client
 }
 
 // NewModel creates a new TUI model.
-func NewModel(dump io.Writer) Model {
+func NewModel(client *gemini.Client) Model {
 	modelName := "gemini-2.0-flash"
 
 	ti := textinput.New()
@@ -111,5 +115,6 @@ func NewModel(dump io.Writer) Model {
 		progress:                   p,
 		modelName:                  "gemini-2.0-flash",
 		currentContent:             "",
+		client:                     client,
 	}
 }

@@ -47,3 +47,8 @@ Down
 Sleep 2
 Enter
 Sleep 2
+Ctrl+v
+Sleep 4
+Type ":q"
+Enter
+Sleep 2

@@ -1,23 +1,26 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/postsa/strut-cli/internal/gemini"
 	"github.com/postsa/strut-cli/internal/tui"
+	"log"
 	"os"
 )
 
 func main() {
-	var dump *os.File
 	var err error
-	dump, err = os.OpenFile("messages.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	client, err := gemini.NewClient(context.Background())
 	if err != nil {
+		log.Printf("Error creating Gemini client: %v", err)
 		os.Exit(1)
 	}
-	program := tea.NewProgram(tui.NewModel(dump), tea.WithAltScreen())
+	defer client.Close()
+	program := tea.NewProgram(tui.NewModel(client), tea.WithAltScreen())
 	_, err = program.Run()
 	if err != nil {
-		fmt.Println("Bummer, there's been an error:", err)
+		log.Printf("Bummer, there's been an error:", err)
 		os.Exit(1)
 	}
 }
