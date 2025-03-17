@@ -5,21 +5,15 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/google/generative-ai-go/genai"
 	"github.com/postsa/strut-cli/internal/gemini"
+	"github.com/postsa/strut-cli/internal/history"
+	"github.com/postsa/strut-cli/internal/viewer"
 )
-
-type item struct {
-	title, desc string
-}
-
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
-func (i item) FilterValue() string { return i.title }
 
 // Model represents the TUI's state.
 type Model struct {
 	textinput      textinput.Model
-	viewerModel    ViewerModel
-	historyModel   HistoryModel
+	viewerModel    viewer.ViewerModel
+	historyModel   history.HistoryModel
 	response       string
 	geminiResponse *genai.GenerateContentResponse
 	err            error
@@ -41,8 +35,8 @@ func NewModel(client *gemini.Client) Model {
 	ti.Placeholder = "ask a question ..."
 	ti.Focus()
 
-	h := NewHistoryModel()
-	v := NewViewerModel()
+	h := history.NewHistoryModel()
+	v := viewer.NewViewerModel()
 
 	p := progress.New(progress.WithDefaultGradient())
 

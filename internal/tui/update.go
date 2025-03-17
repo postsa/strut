@@ -1,22 +1,17 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/google/generative-ai-go/genai"
-	"log"
-	"os"
-	"os/exec"
-	"time"
-
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/postsa/strut-cli/internal/gemini"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/postsa/strut-cli/internal/commands"
+	"github.com/postsa/strut-cli/internal/history"
+	"github.com/postsa/strut-cli/internal/messages"
+	"github.com/postsa/strut-cli/internal/viewer"
+	"os"
 )
-
-type tickMsg time.Time
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
@@ -60,7 +55,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmd := m.progress.IncrPercent(.1)
 				m.loading = true
 				m.textinput.Reset()
-				return m, tea.Batch(cmd, tickCmd(), fetchResponseCmd(m.client, prompt))
+				return m, tea.Batch(cmd, commands.TickCmd(), commands.FetchResponseCmd(m.client, prompt))
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -68,37 +63,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progress.Width = msg.Width - 6
 		m.textinput.Focus()
 
-	case HistoryResizedMessage:
-		return m, ViewPortResizeCmd(msg.totalWidth - msg.newWidth)
+	case messages.HistoryResizedMessage:
+		return m, commands.ViewPortResizeCmd(msg.TotalWidth - msg.NewWidth)
 
-	case geminiResponseMsg:
-		m.geminiResponse = msg.response
-		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
-		cmds = append(cmds, NewAnswerCmd(m.response, msg.prompt))
+	case messages.GeminiResponseMsg:
+		m.geminiResponse = msg.Response
+		m.response = fmt.Sprintf("%v", msg.Response.Candidates[0].Content.Parts[0])
+		cmds = append(cmds, commands.NewAnswerCmd(m.response, msg.Prompt))
 
-	case NewRenderMessage:
+	case messages.NewRenderMessage:
 		m.loading = false
 
-	case SetAnswerMessage:
+	case messages.SetAnswerMessage:
 		m.viewing = true
 		m.listFocus = false
 
-	case errMsg:
-		m.err = msg.err
+	case messages.ErrMsg:
+		m.err = msg.Err
 
-	case tickMsg:
+	case messages.TickMsg:
 		cmd := m.progress.IncrPercent(((1 - m.progress.Percent()) / 3) * ((1 - m.progress.Percent()) / 1.2))
-		return m, tea.Batch(tickCmd(), cmd)
+		return m, tea.Batch(commands.TickCmd(), cmd)
 
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
 		return m, cmd
 
-	case editorFinishedMsg:
-		defer os.Remove(msg.file.Name())
-		if msg.err != nil {
-			m.err = msg.err
+	case messages.EditorFinishedMsg:
+		defer os.Remove(msg.File.Name())
+		if msg.Err != nil {
+			m.err = msg.Err
 			return m, tea.Quit
 		}
 	}
@@ -123,109 +118,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.textinput, tiCmd = m.textinput.Update(msg)
 
 	historyModel, historyCmd = m.historyModel.Update(msg)
-	m.historyModel = historyModel.(HistoryModel)
+	m.historyModel = historyModel.(history.HistoryModel)
 
 	viewerModel, viewerCmd = m.viewerModel.Update(msg)
-	m.viewerModel = viewerModel.(ViewerModel)
+	m.viewerModel = viewerModel.(viewer.ViewerModel)
 
 	cmds = append(cmds, tiCmd, vpCmd, historyCmd, viewerCmd)
 	return m, tea.Batch(cmds...)
 }
 
-type geminiResponseMsg struct {
-	response *genai.GenerateContentResponse
-	prompt   string
-}
-
-func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second/4, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-}
-
-func fetchResponseCmd(client *gemini.Client, prompt string) tea.Cmd {
-	return func() tea.Msg {
-		resp, err := client.GenerateContent(context.Background(), prompt)
-		if err != nil {
-			log.Printf("Error generating content: %v", err)
-			return errMsg{err}
-		}
-		return geminiResponseMsg{response: resp, prompt: prompt}
-	}
-}
-
-type errMsg struct{ err error }
-
-func (e errMsg) Error() string { return e.err.Error() }
-
 func (m Model) Init() tea.Cmd {
 	return textinput.Blink
-}
-
-type editorFinishedMsg struct {
-	err  error
-	file *os.File
-}
-
-func executeVim(content string) tea.Cmd {
-	file, err := os.CreateTemp("", "editor_*.md")
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = file.WriteString(content)
-	cmd := exec.Command("vim", file.Name())
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		return editorFinishedMsg{err, file}
-	})
-}
-
-type SetAnswerMessage struct {
-	answer         string
-	answerRendered string
-}
-type NewAnswerMessage struct {
-	answer string
-	prompt string
-}
-type NewRenderMessage struct{ content string }
-
-func NewAnswerCmd(answer string, prompt string) tea.Cmd {
-	return func() tea.Msg {
-		return NewAnswerMessage{answer, prompt}
-	}
-}
-
-func NewRenderCmd(content string) tea.Cmd {
-	return func() tea.Msg {
-		return NewRenderMessage{content}
-	}
-}
-
-func SetAnswerCmd(answer string, answerRendered string) tea.Cmd {
-	return func() tea.Msg {
-		return SetAnswerMessage{answer, answerRendered}
-	}
-}
-
-type HistoryResizedMessage struct {
-	newWidth   int
-	totalWidth int
-}
-
-func HistoryResizedCmd(newWidth int, totalWidth int) tea.Cmd {
-	return func() tea.Msg {
-		return HistoryResizedMessage{newWidth, totalWidth}
-	}
-}
-
-type ViewPortResizeMessage struct {
-	width int
-}
-
-func ViewPortResizeCmd(width int) tea.Cmd {
-	return func() tea.Msg {
-		return ViewPortResizeMessage{width}
-	}
 }

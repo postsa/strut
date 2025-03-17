@@ -1,4 +1,4 @@
-package tui
+package history
 
 import (
 	"github.com/charmbracelet/bubbles/list"
