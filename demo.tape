@@ -1,4 +1,5 @@
 Output out.gif
+Set FontSize 16
 Set Width 1200
 Set Height 1000
 Set Shell zsh
@@ -45,10 +46,5 @@ Tab
 Sleep 2
 Down
 Sleep 2
-Enter
-Sleep 2
-Ctrl+v
-Sleep 4
-Type ":q"
 Enter
 Sleep 2

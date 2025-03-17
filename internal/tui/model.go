@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
@@ -11,8 +10,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/generative-ai-go/genai"
 	"github.com/postsa/strut-cli/internal/gemini"
-	"io"
-	"log"
 )
 
 type item struct {
@@ -35,7 +32,6 @@ type Model struct {
 	quitting                   bool
 	viewing                    bool
 	previousQuestionsList      []list.Item
-	dump                       io.Writer
 	loading                    bool
 	progress                   progress.Model
 	listFocus                  bool
@@ -107,7 +103,6 @@ func NewModel(client *gemini.Client) Model {
 		mdRenderer:                 *r,
 		previousQuestionsList:      pql,
 		previousQuestionsListModel: pqlm,
-		dump:                       dump,
 		viewing:                    true,
 		loading:                    false,
 		listFocus:                  false,
