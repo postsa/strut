@@ -22,10 +22,13 @@ type tickMsg time.Time
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		tiCmd   tea.Cmd
-		vpCmd   tea.Cmd
-		listCmd tea.Cmd
+		tiCmd      tea.Cmd
+		vpCmd      tea.Cmd
+		historyCmd tea.Cmd
 	)
+	var historyModel tea.Model
+
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.QuitMsg:
@@ -67,28 +70,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.textinput.Blur()
 		m.progress.Width = msg.Width - 6
-		m.previousQuestionsListModel.SetWidth(msg.Width / 3)
-		m.previousQuestionsListModel.SetHeight(msg.Height - 9)
 		m.resultsViewport.Height = msg.Height - 9
-		m.resultsViewport.Style.MaxWidth(msg.Width - m.previousQuestionsListModel.Width())
-		m.resultsViewport.Width = msg.Width - m.previousQuestionsListModel.Width()
 		m.textinput.Focus()
+
+	case HistoryResizedMessage:
+		m.resultsViewport.Style.MaxWidth(msg.totalWidth - msg.newWidth)
+		m.resultsViewport.Width = msg.totalWidth - msg.newWidth
 
 	case geminiResponseMsg:
 		m.geminiResponse = msg.response
-		newList := append(m.previousQuestionsList, item{title: msg.prompt, desc: time.Now().Format("01/02/06 03:04 PM")})
-		m.previousQuestionsList = newList
-		m.previousQuestionsListModel.SetItems(m.previousQuestionsList)
-		m.previousQuestionsListModel.Select(len(m.previousQuestionsList) - 1)
 		m.response = fmt.Sprintf("%v", msg.response.Candidates[0].Content.Parts[0])
-		m.previousAnswers = append(m.previousAnswers, m.response)
-		m.currentContent = m.response
+		cmds = append(cmds, NewAnswerCmd(m.response, msg.prompt))
+
+	case NewAnswerMessage:
+		m.currentContent = msg.answer
 		output, _ := m.mdRenderer.Render(m.response)
-		m.previousAnswersRendered = append(m.previousAnswersRendered, output)
-		m.currentContentRendered = output
+		cmds = append(cmds, NewRenderCmd(output))
+
+	case NewRenderMessage:
+		m.currentContentRendered = msg.content
 		m.resultsViewport.SetContent(m.currentContentRendered)
 		m.resultsViewport.GotoTop()
 		m.loading = false
+
+	case SetAnswerMessage:
+		m.currentContentRendered = msg.answerRendered
+		m.currentContent = msg.answer
+		m.resultsViewport.SetContent(m.currentContentRendered)
+		m.resultsViewport.GotoTop()
+		m.viewing = true
+		m.listFocus = false
 
 	case errMsg:
 		m.err = msg.err
@@ -103,16 +114,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progress = progressModel.(progress.Model)
 		return m, cmd
 
-	case GetAnswerMsg:
-		if len(m.previousQuestionsList) > 0 {
-			m.currentContent = m.previousAnswers[msg.position]
-			m.currentContentRendered = m.previousAnswersRendered[msg.position]
-			m.resultsViewport.SetContent(m.currentContentRendered)
-			m.resultsViewport.GotoTop()
-			m.viewing = true
-			m.listFocus = false
-		}
-
 	case editorFinishedMsg:
 		defer os.Remove(msg.file.Name())
 		if msg.err != nil {
@@ -122,14 +123,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.listFocus {
+		m.historyModel = m.historyModel.Focus()
 		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
 		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("238"))
 		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("238")).Foreground(lipgloss.Color("238"))
 		m.resultsViewport.Style = m.resultsViewport.Style.BorderForeground(lipgloss.Color("238"))
-		m.previousQuestionsListModel, listCmd = m.previousQuestionsListModel.Update(msg)
 		m.textinput.Blur()
 	}
 	if m.viewing {
+		m.historyModel = m.historyModel.Blur()
 		m.textinput.TextStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
 		m.textinput.PromptStyle = lipgloss.NewStyle().Background(lipgloss.Color("89"))
 		m.textinput.PlaceholderStyle = lipgloss.NewStyle().Background(lipgloss.Color("89")).Foreground(lipgloss.Color("228"))
@@ -137,9 +139,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resultsViewport, vpCmd = m.resultsViewport.Update(msg)
 		m.textinput.Focus()
 	}
-	m.textinput, tiCmd = m.textinput.Update(msg)
-	cmds := []tea.Cmd{tiCmd, vpCmd, listCmd}
 
+	m.textinput, tiCmd = m.textinput.Update(msg)
+	historyModel, historyCmd = m.historyModel.Update(msg)
+	m.historyModel = historyModel.(HistoryModel)
+
+	cmds = append(cmds, tiCmd, vpCmd, historyCmd)
 	return m, tea.Batch(cmds...)
 }
 
@@ -190,4 +195,43 @@ func runExternalProcess(content string) tea.Cmd {
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return editorFinishedMsg{err, file}
 	})
+}
+
+type SetAnswerMessage struct {
+	answer         string
+	answerRendered string
+}
+type NewAnswerMessage struct {
+	answer string
+	prompt string
+}
+type NewRenderMessage struct{ content string }
+
+func NewAnswerCmd(answer string, prompt string) tea.Cmd {
+	return func() tea.Msg {
+		return NewAnswerMessage{answer, prompt}
+	}
+}
+
+func NewRenderCmd(content string) tea.Cmd {
+	return func() tea.Msg {
+		return NewRenderMessage{content}
+	}
+}
+
+func SetAnswerCmd(answer string, answerRendered string) tea.Cmd {
+	return func() tea.Msg {
+		return SetAnswerMessage{answer, answerRendered}
+	}
+}
+
+type HistoryResizedMessage struct {
+	newWidth   int
+	totalWidth int
+}
+
+func HistoryResizedCmd(newWidth int, totalWidth int) tea.Cmd {
+	return func() tea.Msg {
+		return HistoryResizedMessage{newWidth, totalWidth}
+	}
 }

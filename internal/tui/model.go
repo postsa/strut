@@ -2,7 +2,6 @@ package tui
 
 import (
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -22,25 +21,22 @@ func (i item) FilterValue() string { return i.title }
 
 // Model represents the TUI's state.
 type Model struct {
-	textinput                  textinput.Model
-	resultsViewport            viewport.Model
-	previousQuestionsListModel list.Model
-	mdRenderer                 glamour.TermRenderer
-	response                   string
-	geminiResponse             *genai.GenerateContentResponse
-	err                        error
-	quitting                   bool
-	viewing                    bool
-	previousQuestionsList      []list.Item
-	loading                    bool
-	progress                   progress.Model
-	listFocus                  bool
-	previousAnswersRendered    []string
-	currentContentRendered     string
-	previousAnswers            []string
-	currentContent             string
-	modelName                  string
-	client                     *gemini.Client
+	textinput              textinput.Model
+	resultsViewport        viewport.Model
+	mdRenderer             glamour.TermRenderer
+	historyModel           HistoryModel
+	response               string
+	geminiResponse         *genai.GenerateContentResponse
+	err                    error
+	quitting               bool
+	viewing                bool
+	loading                bool
+	progress               progress.Model
+	listFocus              bool
+	currentContentRendered string
+	currentContent         string
+	modelName              string
+	client                 *gemini.Client
 }
 
 // NewModel creates a new TUI model.
@@ -50,23 +46,15 @@ func NewModel(client *gemini.Client) Model {
 	ti := textinput.New()
 	ti.Prompt = "(" + modelName + ")" + " > "
 	ti.Placeholder = "ask a question ..."
-
 	ti.Focus()
+
+	h := NewHistoryModel()
 
 	width := 50
 	rvp := viewport.New(width, 30)
 
-	var pql []list.Item
-	pqlm := list.New(pql, getAnswerDelegate(), 20, 20)
-
-	pqlm.Title = "History"
-
-	pqlm.DisableQuitKeybindings()
-	pqlm.Styles.TitleBar = pqlm.Styles.TitleBar.PaddingTop(1).AlignHorizontal(lipgloss.Center)
-
 	p := progress.New(progress.WithDefaultGradient())
 
-	var pa []string
 	viewportStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("228")).
@@ -98,18 +86,16 @@ func NewModel(client *gemini.Client) Model {
 	}
 
 	return Model{
-		textinput:                  ti,
-		resultsViewport:            rvp,
-		mdRenderer:                 *r,
-		previousQuestionsList:      pql,
-		previousQuestionsListModel: pqlm,
-		viewing:                    true,
-		loading:                    false,
-		listFocus:                  false,
-		previousAnswersRendered:    pa,
-		progress:                   p,
-		modelName:                  "gemini-2.0-flash",
-		currentContent:             "",
-		client:                     client,
+		textinput:       ti,
+		resultsViewport: rvp,
+		mdRenderer:      *r,
+		viewing:         true,
+		loading:         false,
+		listFocus:       false,
+		progress:        p,
+		modelName:       "gemini-2.0-flash",
+		currentContent:  "",
+		client:          client,
+		historyModel:    h,
 	}
 }
