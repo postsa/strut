@@ -3,7 +3,7 @@ Strut is a TUI for Gemini
 
 ## Demo
 Ask questions and press tab to browse history.
-![Alt Text](demos/out.gif)
+![Alt Text](demos/demo.gif)
 
 Use `Ctrl+a` to copy all text out of the response pane.
 

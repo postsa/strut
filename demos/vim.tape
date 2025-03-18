@@ -1,4 +1,4 @@
-Output vim.gif 
+Output demos/vim.gif
 Set Width 1200
 Set Height 1000
 Set Shell zsh
