@@ -35,7 +35,7 @@ changelog:
 brews:
   - name: strut
     download_strategy: CurlDownloadStrategy
-
+    homepage: "https://github.com/postsa/strut/"
     commit_author:
       name: postsa
       email: post.spencer.a@gmail.com
