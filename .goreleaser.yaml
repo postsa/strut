@@ -8,8 +8,6 @@ builds:
   - env:
       - CGO_ENABLED=0
     goos:
-      - linux
-      - windows
       - darwin
 
 archives:
@@ -34,7 +32,6 @@ changelog:
 
 brews:
   - name: strut
-    download_strategy: CurlDownloadStrategy
     homepage: "https://github.com/postsa/strut/"
     commit_author:
       name: postsa
