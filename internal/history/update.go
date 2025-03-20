@@ -2,8 +2,8 @@ package history
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/postsa/strut-cli/internal/commands"
-	"github.com/postsa/strut-cli/internal/messages"
+	"github.com/postsa/strut/internal/commands"
+	"github.com/postsa/strut/internal/messages"
 	"time"
 )
 

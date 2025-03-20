@@ -3,10 +3,10 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/google/generative-ai-go/genai"
-	"github.com/postsa/strut-cli/internal/gemini"
-	"github.com/postsa/strut-cli/internal/history"
-	"github.com/postsa/strut-cli/internal/input"
-	"github.com/postsa/strut-cli/internal/viewer"
+	"github.com/postsa/strut/internal/gemini"
+	"github.com/postsa/strut/internal/history"
+	"github.com/postsa/strut/internal/input"
+	"github.com/postsa/strut/internal/viewer"
 )
 
 // Model represents the TUI's state.

@@ -3,7 +3,7 @@ Set Width 1200
 Set Height 1000
 Set Shell zsh
 Set TypingSpeed .2
-Type "./strut-cli"
+Type "./strut"
 Enter
 Sleep 2
 Type "A movie recommendation"

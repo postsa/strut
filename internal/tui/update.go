@@ -5,11 +5,11 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/postsa/strut-cli/internal/commands"
-	"github.com/postsa/strut-cli/internal/history"
-	"github.com/postsa/strut-cli/internal/input"
-	"github.com/postsa/strut-cli/internal/messages"
-	"github.com/postsa/strut-cli/internal/viewer"
+	"github.com/postsa/strut/internal/commands"
+	"github.com/postsa/strut/internal/history"
+	"github.com/postsa/strut/internal/input"
+	"github.com/postsa/strut/internal/messages"
+	"github.com/postsa/strut/internal/viewer"
 	"os"
 )
 
@@ -60,7 +60,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.progress.Width = msg.Width - 6
-	
+
 	case messages.HistoryResizedMessage:
 		return m, commands.ViewPortResizeCmd(msg.TotalWidth - msg.NewWidth)
 

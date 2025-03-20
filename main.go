@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/postsa/strut-cli/internal/gemini"
-	"github.com/postsa/strut-cli/internal/tui"
+	"github.com/postsa/strut/internal/gemini"
+	"github.com/postsa/strut/internal/tui"
 	"log"
 	"os"
 )

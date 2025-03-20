@@ -6,5 +6,7 @@
 *.swp
 ._*
 .DS_Store
-strut-cli
+strut
 pkg/
+# Added by goreleaser init:
+dist/

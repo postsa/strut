@@ -4,7 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/postsa/strut-cli/internal/commands"
+	"github.com/postsa/strut/internal/commands"
 )
 
 func (m Model) Init() tea.Cmd {

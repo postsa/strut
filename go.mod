@@ -1,4 +1,4 @@
-module github.com/postsa/strut-cli
+module github.com/postsa/strut
 
 go 1.23.4
 

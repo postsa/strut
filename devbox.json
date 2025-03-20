@@ -3,7 +3,8 @@
   "packages": [
     "go@latest",
     "vhs@latest",
-    "just@latest"
+    "just@latest",
+    "goreleaser@latest"
   ],
   "env": {
     "PATH": "$PATH:$PWD/bin"

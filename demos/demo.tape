@@ -4,7 +4,7 @@ Set Width 1200
 Set Height 1000
 Set Shell zsh
 Set TypingSpeed .3s
-Type "./strut-cli"
+Type "./strut"
 Enter
 Sleep 2
 Type "A really cool golang program"
