@@ -3,8 +3,8 @@ package commands
 import (
 	"context"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/postsa/strut/internal/gemini"
 	"github.com/postsa/strut/internal/messages"
+	"github.com/postsa/strut/internal/models"
 	"log"
 	"os"
 	"os/exec"
@@ -61,14 +61,14 @@ func TickCmd() tea.Cmd {
 	})
 }
 
-func FetchResponseCmd(client *gemini.Client, prompt string) tea.Cmd {
+func FetchResponseCmd(client models.ChatClient, prompt string) tea.Cmd {
 	return func() tea.Msg {
 		resp, err := client.GenerateContent(context.Background(), prompt)
 		if err != nil {
 			log.Printf("Error generating content: %v", err)
 			return messages.ErrMsg{Err: err}
 		}
-		return messages.GeminiResponseMsg{Response: resp, Prompt: prompt}
+		return messages.ResponseMsg{Response: resp, Prompt: prompt}
 	}
 }
 

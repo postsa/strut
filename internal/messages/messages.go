@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"github.com/google/generative-ai-go/genai"
 	"os"
 	"time"
 )
@@ -30,8 +29,8 @@ type ViewPortResizeMessage struct {
 	Width int
 }
 
-type GeminiResponseMsg struct {
-	Response *genai.GenerateContentResponse
+type ResponseMsg struct {
+	Response string
 	Prompt   string
 }
 

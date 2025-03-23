@@ -3,9 +3,9 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/google/generative-ai-go/genai"
-	"github.com/postsa/strut/internal/gemini"
 	"github.com/postsa/strut/internal/history"
 	"github.com/postsa/strut/internal/input"
+	"github.com/postsa/strut/internal/models"
 	"github.com/postsa/strut/internal/viewer"
 )
 
@@ -23,13 +23,14 @@ type Model struct {
 	progress       progress.Model
 	listFocus      bool
 	modelName      string
-	client         *gemini.Client
+	client         *models.ChatClient
+	Next           string
 }
 
 // NewModel creates a new TUI model.
-func NewModel(client *gemini.Client) Model {
+func NewModel(client models.ChatClient, model string) Model {
 
-	i := input.NewModel("gemini-2.0-flash")
+	i := input.NewModel(model)
 	h := history.NewModel()
 	v := viewer.NewModel()
 
@@ -44,6 +45,7 @@ func NewModel(client *gemini.Client) Model {
 		listFocus:    false,
 		progress:     p,
 		modelName:    "gemini-2.0-flash",
-		client:       client,
+		client:       &client,
+		Next:         "quit",
 	}
 }

@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/glamour v0.8.0
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/google/generative-ai-go v0.19.0
+	github.com/sashabaranov/go-openai v1.38.1
 	google.golang.org/api v0.225.0
 )
 

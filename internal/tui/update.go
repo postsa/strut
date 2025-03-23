@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -46,7 +45,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case tea.KeyEsc:
-			return m, nil
+			m.Next = "choose"
+			return m, tea.Quit
 		}
 
 	case messages.ExecutePromptMessage:
@@ -56,7 +56,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progress.SetPercent(0)
 		cmd := m.progress.IncrPercent(.1)
 		m.loading = true
-		cmds = append(cmds, cmd, commands.TickCmd(), commands.FetchResponseCmd(m.client, msg.Prompt))
+		cmds = append(cmds, cmd, commands.TickCmd(), commands.FetchResponseCmd(*m.client, msg.Prompt))
 
 	case tea.WindowSizeMsg:
 		m.progress.Width = msg.Width - 6
@@ -64,10 +64,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.HistoryResizedMessage:
 		return m, commands.ViewPortResizeCmd(msg.TotalWidth - msg.NewWidth)
 
-	case messages.GeminiResponseMsg:
-		m.geminiResponse = msg.Response
-		m.response = fmt.Sprintf("%v", msg.Response.Candidates[0].Content.Parts[0])
-		cmds = append(cmds, commands.NewAnswerCmd(m.response, msg.Prompt))
+	case messages.ResponseMsg:
+		cmds = append(cmds, commands.NewAnswerCmd(msg.Response, msg.Prompt))
 
 	case messages.NewRenderMessage:
 		m.loading = false
