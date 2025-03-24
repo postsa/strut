@@ -5,6 +5,8 @@ Set Shell zsh
 Set TypingSpeed .2
 Type "./strut"
 Enter
+Down 1
+Enter
 Sleep 2
 Type "A movie recommendation"
 Enter

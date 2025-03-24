@@ -7,6 +7,8 @@ Set TypingSpeed .3s
 Type "./strut"
 Enter
 Sleep 2
+Enter
+Sleep 2
 Type "A really cool golang program"
 Sleep 2
 Enter
