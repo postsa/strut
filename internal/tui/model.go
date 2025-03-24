@@ -9,7 +9,6 @@ import (
 	"github.com/postsa/strut/internal/viewer"
 )
 
-// Model represents the TUI's state.
 type Model struct {
 	inputModel     input.Model
 	viewerModel    viewer.Model
@@ -27,7 +26,6 @@ type Model struct {
 	Next           string
 }
 
-// NewModel creates a new TUI model.
 func NewModel(client models.ChatClient, model string) Model {
 
 	i := input.NewModel(model)

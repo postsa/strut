@@ -2,6 +2,7 @@ package history
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/postsa/strut/internal/commands"
 	"github.com/postsa/strut/internal/messages"
 	"time"
@@ -32,6 +33,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		resizeCmd := commands.HistoryResizedCmd(m.listModel.Width(), msg.Width)
 		m.listModel, cmd = m.listModel.Update(msg)
 		return m, tea.Batch(resizeCmd, cmd)
+	}
+
+	if m.inFocus {
+		m.listModel.Styles.Title = m.listModel.Styles.Title.Background(lipgloss.Color("89"))
+	} else {
+		m.listModel.Styles.Title = m.listModel.Styles.Title.Background(lipgloss.Color("238"))
+	}
+
+	if m.inFocus {
+
 	}
 
 	if m.inFocus {

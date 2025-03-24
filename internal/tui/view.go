@@ -2,7 +2,6 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
-// View renders the TUI.
 func (m Model) View() string {
 	if m.quitting {
 		return "Exiting...\n"
