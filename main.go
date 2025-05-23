@@ -49,6 +49,8 @@ func chooseModel() (error, models.ChatClient, string) {
 		client, err = models.NewGemini(context.Background())
 	} else if model == "gpt-4o" {
 		client, err = models.NewOpenAi()
+	} else if model == "claude-opus-4-0" {
+		client, err = models.NewClaude()
 	}
 	return err, client, model
 }

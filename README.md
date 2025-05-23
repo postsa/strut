@@ -16,6 +16,9 @@ export GEMINI_API_KEY=$(skate get gemini_api_key)
 ```shell
 export OPEN_AI_API_KEY=$(skate get open_ai_api_key)
 ```
+```shell
+export ANTHROPIC_API_KEY=$(skate get open_ai_api_key)
+```
 
 ## Demo
 Ask questions and press tab to browse history.

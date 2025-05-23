@@ -50,7 +50,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 func NewPicker() Picker {
-	items := []list.Item{item("gemini-2.0-flash"), item("gpt-4o")}
+	items := []list.Item{item("gemini-2.0-flash"), item("gpt-4o"), item("claude-opus-4-0")}
 	l := list.New(items, itemDelegate{}, 20, 6)
 	l.Title = "Choose a model"
 	l.SetShowStatusBar(false)

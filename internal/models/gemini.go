@@ -44,6 +44,7 @@ func (c *Gemini) GenerateContent(ctx context.Context, prompt string) (string, er
 		return "", err
 	}
 	resp := fmt.Sprintf("%v", content.Candidates[0].Content.Parts[0])
+
 	return resp, nil
 }
 
