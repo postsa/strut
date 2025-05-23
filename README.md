@@ -1,5 +1,5 @@
 # Strut
-Strut is a TUI for Gemini or Chat GPT
+Strut is a TUI for llms
 
 # Install
 ```shell
@@ -11,13 +11,13 @@ brew install strut
 export your gemini api key, e.g.
 
 ```shell
-export GEMINI_API_KEY=$(skate get gemini_api_key)
+export GEMINI_API_KEY=<your-api-key>
 ```
 ```shell
-export OPEN_AI_API_KEY=$(skate get open_ai_api_key)
+export OPEN_AI_API_KEY=<your-api-key>
 ```
 ```shell
-export ANTHROPIC_API_KEY=$(skate get open_ai_api_key)
+export ANTHROPIC_API_KEY=<your-api-key>
 ```
 
 ## Demo
